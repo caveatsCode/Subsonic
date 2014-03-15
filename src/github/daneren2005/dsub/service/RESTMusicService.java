@@ -1510,4 +1510,8 @@ public class RESTMusicService implements MusicService {
 			return Util.getRestUrl(context, method, instance, allowAltAddress);
 		}
 	}
+
+	public int getServerHash(Context context) {
+		return Util.getServerHash(context, getInstance(context));
+	}
 }

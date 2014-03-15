@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.http.HttpResponse;
 
 import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 
 import github.daneren2005.dsub.domain.Bookmark;
@@ -42,6 +43,9 @@ import github.daneren2005.dsub.domain.SearchCritera;
 import github.daneren2005.dsub.domain.SearchResult;
 import github.daneren2005.dsub.domain.Share;
 import github.daneren2005.dsub.domain.Version;
+import github.daneren2005.dsub.util.CacheUtil;
+import github.daneren2005.dsub.util.DbContract;
+import github.daneren2005.dsub.util.DbHelper;
 import github.daneren2005.dsub.util.SilentBackgroundTask;
 import github.daneren2005.dsub.util.ProgressListener;
 import github.daneren2005.dsub.util.TimeLimitedCache;
@@ -136,13 +140,14 @@ public class CachedMusicService implements MusicService {
     public MusicDirectory getMusicDirectory(String id, String name, boolean refresh, Context context, ProgressListener progressListener) throws Exception {
 		MusicDirectory dir = null;
 
+		SQLiteDatabase db = new DbHelper(context).getWritableDatabase();
 		if(!refresh) {
-			dir = FileUtil.deserialize(context, getCacheName(context, "directory", id), MusicDirectory.class);
+			
 		}
 
 		if(dir == null) {
 			dir = musicService.getMusicDirectory(id, name, refresh, context, progressListener);
-			FileUtil.serialize(context, dir, getCacheName(context, "directory", id));
+			CacheUtil.updateEntries(db, getCacheName(context), dir, DbContract.PLAYLIST);
 		}
 
 		return dir;
@@ -515,7 +520,7 @@ public class CachedMusicService implements MusicService {
     public void setInstance(Integer instance) throws Exception {
     	musicService.setInstance(instance);
     }
-  
+
   	private String getCacheName(Context context, String name, String id) {
   		String s = musicService.getRestUrl(context, null, false) + id;
   		return name + "-" + s.hashCode() + ".ser";
@@ -524,6 +529,10 @@ public class CachedMusicService implements MusicService {
   		String s = musicService.getRestUrl(context, null, false);
   		return name + "-" + s.hashCode() + ".ser";
   	}
+
+	private int getCacheName(Context context) {
+		return musicService.getServerHash(context);
+	}
 
     private void checkSettingsChanged(Context context) {
         String newUrl = musicService.getRestUrl(context, null, false);

@@ -385,6 +385,13 @@ public final class Util {
 
 		return builder.toString();
 	}
+	public static int getServerHash(Context context, int instance) {
+		SharedPreferences prefs = getPreferences(context);
+		String serverUrl = prefs.getString(Constants.PREFERENCES_KEY_SERVER_URL + instance, null);
+		String username = prefs.getString(Constants.PREFERENCES_KEY_USERNAME + instance, null);
+
+		return (serverUrl + username).hashCode();
+	}
 
 	public static boolean isTagBrowsing(Context context) {
 		return isTagBrowsing(context, Util.getActiveServer(context));
