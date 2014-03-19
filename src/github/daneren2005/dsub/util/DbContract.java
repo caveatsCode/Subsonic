@@ -55,7 +55,7 @@ public final class DbContract {
 		public static final String table = "entryList";
 
 		public static final String server = "server";
-		public static final String id = "id";
+		public static final String id = "listId";
 		public static final String name = "name";
 		public static final String type = "type";
 		public static final String parent = "parent";
@@ -66,11 +66,12 @@ public final class DbContract {
 	public static int INDEX = 3;
 	public static int ARTIST = 4;
 	public static int ALBUM = 5;
+	public static int NOW_PLAYING = 6;
 
 	public static abstract class EntryListEntriesContract implements BaseColumns {
 		public static final String table = "entryListEntries";
 
-		public static final String id = "id";
+		public static final String listId = "listId";
 		public static final String entryId = "entryId";
 	}
 }

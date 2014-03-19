@@ -40,7 +40,7 @@ public class DbHelper extends SQLiteOpenHelper {
 		EntryListContract._ID + "BIGINT PRIMARY KEY, " + EntryListContract.id + " TEXT, " + EntryListContract.name + " TEXT, " +
 		EntryListContract.type + " SMALLINT, " + EntryListContract.parent + " TEXT, " + EntryListContract.server + " INTEGER";
 	public static final String SQL_CREATE_ENTRY_LIST_ENTRIES = "CREATE TABLE " + EntryListEntriesContract.table +
-		EntryListEntriesContract._ID + "BIGINT PRIMARY KEY, " + EntryListEntriesContract.id + " TEXT, "+
+		EntryListEntriesContract._ID + "BIGINT PRIMARY KEY, " + EntryListEntriesContract.listId + " TEXT, "+
 		EntryListEntriesContract.entryId + " TEXT";
 
 	private static final String SQL_DELETE_ENTRIES = "DROP TABLE IF EXISTS " + EntryContract.table;

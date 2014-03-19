@@ -142,12 +142,12 @@ public class CachedMusicService implements MusicService {
 
 		SQLiteDatabase db = new DbHelper(context).getWritableDatabase();
 		if(!refresh) {
-			
+			dir = CacheUtil.getEntries(db, getServerHex(context), id, DbContract.FOLDER);
 		}
 
 		if(dir == null) {
 			dir = musicService.getMusicDirectory(id, name, refresh, context, progressListener);
-			CacheUtil.updateEntries(db, getCacheName(context), dir, DbContract.PLAYLIST);
+			CacheUtil.updateEntries(db, getServerHex(context), dir, DbContract.FOLDER);
 		}
 
 		return dir;
@@ -530,7 +530,7 @@ public class CachedMusicService implements MusicService {
   		return name + "-" + s.hashCode() + ".ser";
   	}
 
-	private int getCacheName(Context context) {
+	private int getServerHex(Context context) {
 		return musicService.getServerHash(context);
 	}
 
