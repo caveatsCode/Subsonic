@@ -65,13 +65,13 @@ public class EqualizerFragment extends SubsonicFragment {
 	public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle bundle) {
 		rootView = inflater.inflate(R.layout.equalizer, container, false);
 
-		DownloadService service = DownloadService.getInstance();
-		equalizerController = service.getEqualizerController();
-		equalizer = equalizerController.getEqualizer();
-		bass = equalizerController.getBassBoost();
-		loudnessEnhancer = equalizerController.getLoudnessEnhancerController();
-
 		try {
+			DownloadService service = DownloadService.getInstance();
+			equalizerController = service.getEqualizerController();
+			equalizer = equalizerController.getEqualizer();
+			bass = equalizerController.getBassBoost();
+			loudnessEnhancer = equalizerController.getLoudnessEnhancerController();
+
 			initEqualizer();
 		} catch(Exception e) {
 			Log.e(TAG, "Failed to initialize EQ", e);
@@ -186,7 +186,11 @@ public class EqualizerFragment extends SubsonicFragment {
 				} else if(setLevel > maxEQLevel) {
 					setLevel = maxEQLevel;
 				}
-				equalizer.setBandLevel(band, setLevel);
+				try {
+					equalizer.setBandLevel(band, setLevel);
+				} catch(Exception e) {
+					Log.w(TAG, "Failed to set band level");
+				}
 			} else if(!isEnabled) {
 				bar.setProgress(-minEQLevel);
 			}
@@ -195,6 +199,14 @@ public class EqualizerFragment extends SubsonicFragment {
 		bassBar.setEnabled(isEnabled);
 		if(loudnessBar != null) {
 			loudnessBar.setEnabled(isEnabled);
+		}
+		if(changedEnabled && !isEnabled) {
+			bass.setStrength((short) 0);
+			bassBar.setProgress(0);
+			if(loudnessBar != null) {
+				loudnessEnhancer.setGain(0);
+				loudnessBar.setProgress(0);
+			}
 		}
 
 		if(!isEnabled) {

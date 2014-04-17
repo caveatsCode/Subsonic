@@ -204,7 +204,7 @@ public class RESTMusicService implements MusicService {
         }
 
 		// If manual refresh, try to start server scan for madsonic servers
-		if(refresh) {
+		/*if(refresh) {
 			Reader reader = getReader(context, progressListener, "startRescan", null);
 			try {
 				new ErrorParser(context).parse(reader);
@@ -213,7 +213,7 @@ public class RESTMusicService implements MusicService {
 			} finally {
 				Util.close(reader);
 			}
-		}
+		}*/
 
         long lastModified = (cachedIndexes == null || refresh) ? 0L : cachedIndexes.getLastModified();
 
@@ -637,8 +637,7 @@ public class RESTMusicService implements MusicService {
 	public String getCoverArtUrl(Context context, MusicDirectory.Entry entry) throws Exception {
 		StringBuilder builder = new StringBuilder(getRestUrl(context, "getCoverArt"));
 		builder.append("&id=").append(entry.getId());
-		String url = rewriteUrlWithRedirect(context, builder.toString());
-		return url;
+		return builder.toString();
 	}
 
     @Override
@@ -726,7 +725,7 @@ public class RESTMusicService implements MusicService {
 		builder.append("&id=").append(song.getId());
 		builder.append("&maxBitRate=").append(maxBitrate);
 
-		String url = rewriteUrlWithRedirect(context, builder.toString());
+		String url = builder.toString();
 		Log.i(TAG, "Using music URL: " + stripUrlInfo(url));
 		return url;
 	}
@@ -1351,7 +1350,7 @@ public class RESTMusicService implements MusicService {
 
     private HttpResponse executeWithRetry(Context context, String url, String originalUrl, HttpParams requestParams,
                                           List<String> parameterNames, List<Object> parameterValues,
-                                          List<Header> headers, ProgressListener progressListener, SilentBackgroundTask task) throws IOException {
+                                          List<Header> headers, ProgressListener progressListener, SilentBackgroundTask task) throws Exception {
 		// Strip out sensitive information from log
         Log.i(TAG, stripUrlInfo(url));
 
@@ -1424,7 +1423,7 @@ public class RESTMusicService implements MusicService {
                 }
                 Log.w(TAG, "Got IOException (" + attempts + "), will retry", x);
                 increaseTimeouts(requestParams);
-                Util.sleepQuietly(2000L);
+				Thread.sleep(2000L);
             }
         }
     }

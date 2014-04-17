@@ -48,6 +48,7 @@ import android.text.method.LinkMovementMethod;
 import android.text.util.Linkify;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.view.KeyEvent;
 import android.widget.LinearLayout;
@@ -160,7 +161,6 @@ public final class Util {
         SharedPreferences prefs = getPreferences(context);
         SharedPreferences.Editor editor = prefs.edit();
         editor.putInt(Constants.PREFERENCES_KEY_SERVER_INSTANCE, instance);
-		editor.putString(Constants.PREFERENCES_KEY_MUSIC_FOLDER_ID + instance, null);
         editor.commit();
     }
 
@@ -172,11 +172,7 @@ public final class Util {
 	public static boolean checkServerVersion(Context context, String requiredVersion) {
 		Version version = Util.getServerRestVersion(context);
 		Version required = new Version(requiredVersion);
-		if(version != null && version.compareTo(required) >= 0) {
-			return true;
-		} else {
-			return false;
-		}
+		return version != null && version.compareTo(required) >= 0;
 	}
 	
 	public static int getServerCount(Context context) {
@@ -657,6 +653,9 @@ public final class Util {
         toast.show();
     }
 	
+	public static void confirmDialog(Context context, int action, int subject, DialogInterface.OnClickListener onClick) {
+		Util.confirmDialog(context, context.getResources().getString(action).toLowerCase(), context.getResources().getString(subject), onClick);
+	}
 	public static void confirmDialog(Context context, int action, String subject, DialogInterface.OnClickListener onClick) {
 		Util.confirmDialog(context, context.getResources().getString(action).toLowerCase(), subject, onClick);
 	}
@@ -986,14 +985,15 @@ public final class Util {
         notification.flags |= Notification.FLAG_NO_CLEAR | Notification.FLAG_ONGOING_EVENT;
 
 		boolean playing = downloadService.getPlayerState() == PlayerState.STARTED;
+		boolean remote = downloadService.isRemoteEnabled();
         if (Build.VERSION.SDK_INT>= Build.VERSION_CODES.JELLY_BEAN){
 			RemoteViews expandedContentView = new RemoteViews(context.getPackageName(), R.layout.notification_expanded);
-            setupViews(expandedContentView,context,song, playing);
+            setupViews(expandedContentView,context,song, playing, remote);
             notification.bigContentView = expandedContentView;
         }
         
         RemoteViews smallContentView = new RemoteViews(context.getPackageName(), R.layout.notification);
-        setupViews(smallContentView, context, song, playing);
+        setupViews(smallContentView, context, song, playing, remote);
         notification.contentView = smallContentView;
         
         Intent notificationIntent = new Intent(context, SubsonicFragmentActivity.class);
@@ -1012,7 +1012,7 @@ public final class Util {
         DSubWidgetProvider.notifyInstances(context, downloadService, playing);
     }
     
-    private static void setupViews(RemoteViews rv, Context context, MusicDirectory.Entry song, boolean playing){
+    private static void setupViews(RemoteViews rv, Context context, MusicDirectory.Entry song, boolean playing, boolean remote){
     
      // Use the same text for the ticker and the expanded notification
         String title = song.getTitle();
@@ -1069,6 +1069,11 @@ public final class Util {
 			next = R.id.control_next;
 		}
 
+		if(remote && close == 0) {
+			close = R.id.notification_close;
+			rv.setViewVisibility(close, View.VISIBLE);
+		}
+
 		if(previous > 0) {
 			Intent prevIntent = new Intent("KEYCODE_MEDIA_PREVIOUS");
 			prevIntent.setComponent(new ComponentName(context, DownloadService.class));
@@ -1120,23 +1125,18 @@ public final class Util {
         DSubWidgetProvider.notifyInstances(context, downloadService, false);
     }
     
-	public static void showDownloadingNotification(final Context context, DownloadFile file, int size, DownloadFile speedFile) {
+	public static void showDownloadingNotification(final Context context, DownloadFile file, int size) {
 		Intent cancelIntent = new Intent(context, DownloadService.class);
 		cancelIntent.setAction(DownloadService.CANCEL_DOWNLOADS);
 		PendingIntent cancelPI = PendingIntent.getService(context, 0, cancelIntent, 0);
 
-		String currentDownloading, currentSize, speed;
+		String currentDownloading, currentSize;
 		if(file != null) {
 			currentDownloading = file.getSong().getTitle();
 			currentSize = Util.formatBytes(file.getEstimatedSize());
 		} else {
 			currentDownloading = "none";
 			currentSize = "0";
-		}
-		if(speedFile != null) {
-			speed = Long.toString(speedFile.getBytesPerSecond() / 1024);
-		} else {
-			speed = "0";
 		}
 
     	NotificationCompat.Builder builder;
@@ -1145,7 +1145,7 @@ public final class Util {
     		.setContentTitle(context.getResources().getString(R.string.download_downloading_title, size))
     		.setContentText(context.getResources().getString(R.string.download_downloading_summary, currentDownloading))
 			.setStyle(new NotificationCompat.BigTextStyle()
-				.bigText(context.getResources().getString(R.string.download_downloading_summary_expanded, currentDownloading, currentSize, speed)))
+				.bigText(context.getResources().getString(R.string.download_downloading_summary_expanded, currentDownloading, currentSize)))
     		.setProgress(10, 5, true)
 			.setOngoing(true)
 			.addAction(R.drawable.notification_close,
@@ -1324,7 +1324,7 @@ public final class Util {
                 intent.putExtra("state", "stop");
 				avrcpIntent.putExtra("playing", false);
                 break;
-            case PAUSED:
+            case PAUSED: case PREPARED:
                 intent.putExtra("state", "pause");
 				avrcpIntent.putExtra("playing", false);
                 break;
@@ -1337,7 +1337,9 @@ public final class Util {
         }
 		addTrackInfo(context, song, avrcpIntent);
 
-        context.sendBroadcast(intent);
+		if(state != PlayerState.PREPARED) {
+			context.sendBroadcast(intent);
+		}
 		context.sendBroadcast(avrcpIntent);
     }
 

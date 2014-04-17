@@ -99,7 +99,6 @@ public class DownloadService extends Service {
 	private MediaPlayer nextMediaPlayer;
 	private int audioSessionId;
 	private boolean nextSetup = false;
-	private boolean isPartial = true;
 	private final List<DownloadFile> downloadList = new ArrayList<DownloadFile>();
 	private final List<DownloadFile> backgroundDownloadList = new ArrayList<DownloadFile>();
 	private final List<DownloadFile> toDelete = new ArrayList<DownloadFile>();
@@ -128,9 +127,7 @@ public class DownloadService extends Service {
 	private PowerManager.WakeLock wakeLock;
 	private boolean keepScreenOn;
 	private int cachedPosition = 0;
-	private long downloadRevision;
 	private boolean downloadOngoing = false;
-	private DownloadFile lastDownloaded = null;
 
 	private AudioEffectsController effectsController;
 	private boolean showVisualization;
@@ -164,7 +161,11 @@ public class DownloadService extends Service {
 						return false;
 					}
 				});
-				audioSessionId = mediaPlayer.getAudioSessionId();
+				try {
+					audioSessionId = mediaPlayer.getAudioSessionId();
+				} catch(Throwable e) {
+					// Froyo or lower
+				}
 
 				try {
 					Intent i = new Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION);
@@ -352,6 +353,9 @@ public class DownloadService extends Service {
 			if(!downloadFile.isWorkDone() || (downloadFile.shouldSave() && !downloadFile.isSaved())) {
 				// Only add to list if there is work to be done
 				backgroundDownloadList.add(downloadFile);
+			} else if(downloadFile.isSaved() && !save) {
+				// Quickly unpin song instead of adding it to work to be done
+				downloadFile.unpin();
 			}
 		}
 		revision++;
@@ -500,6 +504,7 @@ public class DownloadService extends Service {
 			currentDownloading = null;
 		}
 		backgroundDownloadList.clear();
+		revision++;
 		Util.hideDownloadingNotification(this);
 	}
 
@@ -725,9 +730,15 @@ public class DownloadService extends Service {
 		play(index, start, 0);
 	}
 	private synchronized void play(int index, boolean start, int position) {
-		if (index < 0 || index >= size()) {
+		int size = this.size();
+		if (index < 0 || index >= size) {
 			reset();
-			setCurrentPlaying(null, false);
+			if(index >= size && size != 0) {
+				setCurrentPlaying(0, false);
+				Util.hidePlayingNotification(this, this, handler);
+			} else {
+				setCurrentPlaying(null, false);
+			}
 			lifecycleSupport.serializeDownloadQueue();
 		} else {
 			if(nextPlayingTask != null) {
@@ -736,7 +747,7 @@ public class DownloadService extends Service {
 			}
 			setCurrentPlaying(index, start);
 			if (start && remoteState != RemoteControlState.LOCAL) {
-				remoteController.changeTrack(index, downloadList.get(index));
+				remoteController.changeTrack(index, currentPlaying);
 			}
 			if (remoteState == RemoteControlState.LOCAL) {
 				bufferAndPlay(position, start);
@@ -759,6 +770,7 @@ public class DownloadService extends Service {
 	}
 	private synchronized void playNext(boolean start) {
 		// Swap the media players since nextMediaPlayer is ready to play
+		Util.broadcastPlaybackStatusChange(this, currentPlaying.getSong(), PlayerState.PREPARED);
 		if(start) {
 			nextMediaPlayer.start();
 		} else if(!nextMediaPlayer.isPlaying()) {
@@ -866,7 +878,7 @@ public class DownloadService extends Service {
 		}
 	}
 
-	private void onSongCompleted() {
+	public void onSongCompleted() {
 		play(getNextPlayingIndex());
 	}
 
@@ -890,6 +902,12 @@ public class DownloadService extends Service {
 			if (playerState == STARTED) {
 				if (remoteState != RemoteControlState.LOCAL) {
 					remoteController.stop();
+					handler.post(new Runnable() {
+						@Override
+						public void run() {
+							mediaRouter.setDefaultRoute();
+						}
+					});
 				} else {
 					mediaPlayer.pause();
 				}
@@ -956,10 +974,14 @@ public class DownloadService extends Service {
 			}
 		}
 		if (playerState != IDLE && playerState != DOWNLOADING && playerState != PlayerState.PREPARING) {
-			try {
-				return mediaPlayer.getDuration();
-			} catch (Exception x) {
-				handleError(x);
+			if(remoteState == RemoteControlState.LOCAL) {
+				try {
+					return mediaPlayer.getDuration();
+				} catch (Exception x) {
+					handleError(x);
+				}
+			} else {
+				return remoteController.getRemoteDuration() * 1000;
 			}
 		}
 		return 0;
@@ -1166,24 +1188,34 @@ public class DownloadService extends Service {
 			}
 		}
 
-		SharedPreferences prefs = Util.getPreferences(this);
-		if(currentPlaying != null && prefs.getBoolean(Constants.PREFERENCES_KEY_PERSISTENT_NOTIFICATION, false)) {
-			Util.showPlayingNotification(this, this, handler, currentPlaying.getSong());
-		} else {
-			Util.hidePlayingNotification(this, this, handler);
-		}
-
 		if(remoteState == RemoteControlState.LOCAL) {
 			checkDownloads();
 		}
 
 		if(routeId != null) {
-			handler.post(new Runnable() {
+			final Runnable delayedReconnect = new Runnable() {
 				@Override
 				public void run() {
 					RouteInfo info = mediaRouter.getRouteForId(routeId);
 					if(info == null) {
 						setRemoteState(RemoteControlState.LOCAL, null);
+					} else if(newState == RemoteControlState.CHROMECAST) {
+						RemoteController controller = mediaRouter.getRemoteController(info);
+						if(controller != null) {
+							setRemoteState(RemoteControlState.CHROMECAST, controller);
+						}
+					}
+					mediaRouter.stopScan();
+				}
+			};
+
+			handler.post(new Runnable() {
+				@Override
+				public void run() {
+					mediaRouter.startScan();
+					RouteInfo info = mediaRouter.getRouteForId(routeId);
+					if(info == null) {
+						handler.postDelayed(delayedReconnect, 2000L);
 					} else if(newState == RemoteControlState.CHROMECAST) {
 						RemoteController controller = mediaRouter.getRemoteController(info);
 						if(controller != null) {
@@ -1228,7 +1260,7 @@ public class DownloadService extends Service {
 		try {
 			downloadFile.setPlaying(true);
 			final File file = downloadFile.isCompleteFileAvailable() ? downloadFile.getCompleteFile() : downloadFile.getPartialFile();
-			isPartial = file.equals(downloadFile.getPartialFile());
+			boolean isPartial = file.equals(downloadFile.getPartialFile());
 			downloadFile.updateModificationDate();
 
 			mediaPlayer.setOnCompletionListener(null);
@@ -1236,7 +1268,7 @@ public class DownloadService extends Service {
 			setPlayerState(IDLE);
 			try {
 				mediaPlayer.setAudioSessionId(audioSessionId);
-			} catch(Exception e) {
+			} catch(Throwable e) {
 				mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 			}
 			String dataSource = file.getPath();
@@ -1454,7 +1486,11 @@ public class DownloadService extends Service {
 
 	public void setVolume(float volume) {
 		if(mediaPlayer != null && (playerState == STARTED || playerState == PAUSED || playerState == STOPPED)) {
-			mediaPlayer.setVolume(volume, volume);
+			try {
+				mediaPlayer.setVolume(volume, volume);
+			} catch(Exception e) {
+				Log.w(TAG, "Failed to set volume");
+			}
 		}
 	}
 
@@ -1579,25 +1615,11 @@ public class DownloadService extends Service {
 		}
 
 		if(!backgroundDownloadList.isEmpty()) {
-			DownloadFile speedFile = null;
-			// Updating existing notification
-			if(downloadOngoing) {
-				// Changing download, use speed of last DownloadFile
-				if(revision != downloadRevision && lastDownloaded != null) {
-					speedFile = lastDownloaded;
-				} else {
-					// Updated mid-download
-					speedFile = currentDownloading;
-				}
-			}
-			Util.showDownloadingNotification(this, currentDownloading, backgroundDownloadList.size(), speedFile);
-			downloadRevision = revision;
-			lastDownloaded = currentDownloading;
+			Util.showDownloadingNotification(this, currentDownloading, backgroundDownloadList.size());
 			downloadOngoing = true;
 		} else if(backgroundDownloadList.isEmpty() && downloadOngoing) {
 			Util.hideDownloadingNotification(this);
 			downloadOngoing = false;
-			lastDownloaded = null;
 		}
 
 		// Delete obsolete .partial and .complete files.
@@ -1686,13 +1708,15 @@ public class DownloadService extends Service {
 		}
 
 		@Override
-		public Void doInBackground() {
+		public Void doInBackground() throws InterruptedException {
 			setPlayerState(DOWNLOADING);
 
 			while (!bufferComplete()) {
-				Util.sleepQuietly(1000L);
-				if (isCancelled()) {
+				Thread.sleep(1000L);
+				if (isCancelled() || downloadFile.isFailedMax()) {
 					return null;
+				} else if(!downloadFile.isFailedMax() && !downloadFile.isDownloading()) {
+					checkDownloads();
 				}
 			}
 			doPlay(downloadFile, position, start);
@@ -1729,15 +1753,15 @@ public class DownloadService extends Service {
 		}
 
 		@Override
-		public Void doInBackground() {
+		public Void doInBackground()  throws InterruptedException {
 			if(downloadFile == null) {
 				return null;
 			}
 
 			// Do an initial sleep so this prepare can't compete with main prepare
-			Util.sleepQuietly(5000L);
+			Thread.sleep(5000L);
 			while (!bufferComplete()) {
-				Util.sleepQuietly(5000L);
+				Thread.sleep(5000L);
 				if (isCancelled()) {
 					return null;
 				}

@@ -132,7 +132,7 @@ public class SettingsActivity extends PreferenceActivity implements SharedPrefer
 		findPreference("clearCache").setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
 			@Override
 			public boolean onPreferenceClick(Preference preference) {
-				Util.confirmDialog(SettingsActivity.this, R.string.common_delete, "cache", new DialogInterface.OnClickListener() {
+				Util.confirmDialog(SettingsActivity.this, R.string.common_delete, R.string.common_confirm_message_cache, new DialogInterface.OnClickListener() {
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
 						new LoadingTask<Void>(SettingsActivity.this, false) {
@@ -170,6 +170,8 @@ public class SettingsActivity extends PreferenceActivity implements SharedPrefer
 
 				SharedPreferences.Editor editor = settings.edit();
 				editor.putInt(Constants.PREFERENCES_KEY_SERVER_COUNT, serverCount);
+				// Reset set folder ID
+				editor.putString(Constants.PREFERENCES_KEY_MUSIC_FOLDER_ID + instance, null);
 				editor.commit();
 
 				serverSettings.put(instance, new ServerSettings(instance));
@@ -503,7 +505,7 @@ public class SettingsActivity extends PreferenceActivity implements SharedPrefer
 
     private void setCacheLocation(String path) {
         File dir = new File(path);
-        if (!FileUtil.ensureDirectoryExistsAndIsReadWritable(dir)) {
+        if (!FileUtil.verifyCanWrite(dir)) {
             Util.toast(this, R.string.settings_cache_location_error, false);
 
             // Reset it to the default.

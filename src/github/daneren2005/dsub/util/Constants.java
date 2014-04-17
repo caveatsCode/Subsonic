@@ -37,8 +37,7 @@ public final class Constants {
     // Names for intent extras.
     public static final String INTENT_EXTRA_NAME_ID = "subsonic.id";
     public static final String INTENT_EXTRA_NAME_NAME = "subsonic.name";
-	public static final String INTENT_EXTRA_NAME_PARENT_ID = "subsonic.parent_id";
-    public static final String INTENT_EXTRA_NAME_PARENT_NAME = "subsonic.parent_name";
+	public static final String INTENT_EXTRA_NAME_CHILD_ID = "subsonic.child.id";
     public static final String INTENT_EXTRA_NAME_ARTIST = "subsonic.artist";
     public static final String INTENT_EXTRA_NAME_TITLE = "subsonic.title";
     public static final String INTENT_EXTRA_NAME_AUTOPLAY = "subsonic.playall";
@@ -138,6 +137,8 @@ public final class Constants {
 	public static final String PREFERENCES_KEY_SHARED_ENABLED = "sharedEnabled";
 	public static final String PREFERENCES_KEY_BROWSE_TAGS = "browseTags";
 	public static final String PREFERENCES_KEY_OPEN_TO_LIBRARY = "openToLibrary";
+	public static final String PREFERENCES_KEY_OVERRIDE_SYSTEM_LANGUAGE = "overrideSystemLanguage";
+	public static final String PREFERENCES_KEY_PLAY_NOW_AFTER = "playNowAfter";
 	
 	public static final String OFFLINE_SCROBBLE_COUNT = "scrobbleCount";
 	public static final String OFFLINE_SCROBBLE_ID = "scrobbleID";

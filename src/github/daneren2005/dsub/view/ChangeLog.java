@@ -281,7 +281,13 @@ public class ChangeLog {
     protected AlertDialog getDialog(boolean full) {
         WebView wv = new WebView(mContext);
         //wv.setBackgroundColor(0); // transparent
-        wv.loadDataWithBaseURL(null, getLog(full), "text/html", "UTF-8", null);
+		String log = getLog(full);
+		// No changes to show
+		if(log == null) {
+			return null;
+		}
+
+        wv.loadDataWithBaseURL(null, log, "text/html", "UTF-8", null);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
         builder.setTitle(
@@ -364,27 +370,11 @@ public class ChangeLog {
 
         Resources resources = mContext.getResources();
 
-        // Read master change log from raw/changelog.xml
-        SparseArray<ReleaseItem> defaultChangelog;
-        try {
-            XmlPullParser xml = XmlPullParserFactory.newInstance().newPullParser();
-            InputStreamReader reader = new InputStreamReader(resources.openRawResource(R.raw.changelog));
-            xml.setInput(reader);
-            try {
-                defaultChangelog = readChangeLog(xml, full);
-            } finally {
-                try { reader.close(); } catch (Exception e) { /* do nothing */ }
-            }
-        } catch (XmlPullParserException e) {
-            Log.e(LOG_TAG, "Error reading raw/changelog.xml", e);
-            return null;
-        }
-
-        // Read localized change log from xml[-lang]/changelog.xml
+        // Read master change log from xml/changelog.xml
+		SparseArray<ReleaseItem> changelog;
         XmlResourceParser resXml = mContext.getResources().getXml(R.xml.changelog);
-        SparseArray<ReleaseItem> changelog;
         try {
-            changelog = readChangeLog(resXml, full);
+			changelog = readChangeLog(resXml, full);
         } finally {
             resXml.close();
         }
@@ -392,21 +382,25 @@ public class ChangeLog {
         String versionFormat = resources.getString(R.string.changelog_version_format);
 
         // Get all version codes from the master change log...
-        List<Integer> versions = new ArrayList<Integer>(defaultChangelog.size());
-        for (int i = 0, len = defaultChangelog.size(); i < len; i++) {
-            int key = defaultChangelog.keyAt(i);
+        List<Integer> versions = new ArrayList<Integer>(changelog.size());
+        for (int i = 0, len = changelog.size(); i < len; i++) {
+            int key = changelog.keyAt(i);
             versions.add(key);
         }
 
         // ... and sort them (newest version first).
         Collections.sort(versions, Collections.reverseOrder());
 
+		if(versions.size() == 0) {
+			return null;
+		}
+
         for (Integer version : versions) {
             int key = version.intValue();
 
             // Use release information from localized change log and fall back to the master file
             // if necessary.
-            ReleaseItem release = changelog.get(key, defaultChangelog.get(key));
+            ReleaseItem release = changelog.get(key);
 
             sb.append("<div class='title'>");
             sb.append(String.format(versionFormat, release.versionName));

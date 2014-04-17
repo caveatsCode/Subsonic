@@ -31,7 +31,6 @@ import android.os.PowerManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import github.daneren2005.dsub.domain.MusicDirectory;
-import github.daneren2005.dsub.service.parser.SubsonicRESTException;
 import github.daneren2005.dsub.util.SilentBackgroundTask;
 import github.daneren2005.dsub.util.FileUtil;
 import github.daneren2005.dsub.util.Util;
@@ -156,7 +155,11 @@ public class DownloadFile implements BufferFile {
     public synchronized void downloadNow(MusicService musicService) {
     	preDownload();
 		downloadTask.setMusicService(musicService);
-    	downloadTask.doInBackground();
+		try {
+			downloadTask.doInBackground();
+		} catch(InterruptedException e) {
+			// This should never be reached
+		}
     }
     private void preDownload() {
     	FileUtil.createDirectoryForParent(saveFile);
@@ -223,6 +226,13 @@ public class DownloadFile implements BufferFile {
 		setPlaying(false);
 	}
 
+	@Override
+	public synchronized void onResume() {
+		if(!isFailedMax() && !isDownloading()) {
+			download();
+		}
+	}
+
 	public synchronized boolean isDownloading() {
         return downloadTask != null && downloadTask.isRunning();
     }
@@ -285,10 +295,10 @@ public class DownloadFile implements BufferFile {
 	
 	public void setPlaying(boolean isPlaying) {
 		try {
-			if(saveWhenDone && isPlaying == false) {
+			if(saveWhenDone && !isPlaying) {
 				Util.renameFile(completeFile, saveFile);
 				saveWhenDone = false;
-			} else if(completeWhenDone && isPlaying == false) {
+			} else if(completeWhenDone && !isPlaying) {
 				if(save) {
 					Util.renameFile(partialFile, saveFile);
                     mediaStoreService.saveInMediaStore(DownloadFile.this);
@@ -327,8 +337,7 @@ public class DownloadFile implements BufferFile {
 		}
 
         @Override
-        public Void doInBackground() {
-
+        public Void doInBackground() throws InterruptedException {
             InputStream in = null;
             FileOutputStream out = null;
             PowerManager.WakeLock wakeLock = null;
@@ -398,6 +407,8 @@ public class DownloadFile implements BufferFile {
 
 					if (isCancelled()) {
 						throw new Exception("Download of '" + song + "' was cancelled");
+					} else if(partialFile.length() == 0) {
+						throw new Exception("Download of '" + song + "' failed.  File is 0 bytes long.");
 					}
 
 					downloadAndSaveCoverArt(musicService);
@@ -418,25 +429,25 @@ public class DownloadFile implements BufferFile {
 					}
 				}
 
-            } catch(SubsonicRESTException x) {
-            	Util.close(out);
-                Util.delete(completeFile);
-                Util.delete(saveFile);
-                if (!isCancelled()) {
-                    failed++;
-                    failedDownload = true;
-                    Log.w(TAG, "Failed to download '" + song + "'.", x);
-                }
-            } catch (Exception x) {
+            } catch(InterruptedException x) {
+				throw x;
+			} catch(IOException x) {
+				Util.close(out);
+				Util.delete(completeFile);
+				Util.delete(saveFile);
+				if(!isCancelled()) {
+					failedDownload = true;
+					Log.w(TAG, "Failed to download '" + song + "'.", x);
+				}
+			} catch (Exception x) {
                 Util.close(out);
                 Util.delete(completeFile);
                 Util.delete(saveFile);
                 if (!isCancelled()) {
-					failed++;
+                	failed++;
                     failedDownload = true;
                     Log.w(TAG, "Failed to download '" + song + "'.", x);
                 }
-
             } finally {
                 Util.close(in);
                 Util.close(out);
@@ -449,7 +460,7 @@ public class DownloadFile implements BufferFile {
 				}
                 new CacheCleaner(context, DownloadService.getInstance()).cleanSpace();
 				if(DownloadService.getInstance() != null) {
-					((DownloadService) DownloadService.getInstance()).checkDownloads();
+					DownloadService.getInstance().checkDownloads();
 				}
             }
 

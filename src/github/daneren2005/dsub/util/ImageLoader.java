@@ -72,7 +72,9 @@ public class ImageLoader {
 			protected void entryRemoved(boolean evicted, String key, Bitmap oldBitmap, Bitmap newBitmap) {
 				if(evicted) {
 					if(oldBitmap != nowPlaying) {
-						oldBitmap.recycle();
+						if(sizeOf("", oldBitmap) > 500) {
+							oldBitmap.recycle();
+						}
 					} else {
 						cache.put(key, oldBitmap);
 					}
@@ -121,6 +123,13 @@ public class ImageLoader {
 			createLargeUnknownImage(view.getContext());
 		}
 
+		if(entry != null && entry.getCoverArt() == null && entry.isDirectory()) {
+			// Try to lookup child cover art
+			MusicDirectory.Entry firstChild = FileUtil.lookupChild(context, entry, true);
+			if(firstChild != null) {
+				entry.setCoverArt(firstChild.getCoverArt());
+			}
+		}
 		if (entry == null || entry.getCoverArt() == null) {
 			setUnknownImage(view, large);
 			return;
@@ -206,7 +215,6 @@ public class ImageLoader {
 				}
 			}
 			imageView.setImageDrawable(drawable);
-			return;
 		}
 	}
 

@@ -20,6 +20,7 @@ package github.daneren2005.dsub.activity;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
+import android.app.Dialog;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
@@ -44,6 +45,7 @@ import github.daneren2005.dsub.R;
 import github.daneren2005.dsub.domain.MusicDirectory;
 import github.daneren2005.dsub.domain.PlayerState;
 import github.daneren2005.dsub.fragments.ChatFragment;
+import github.daneren2005.dsub.fragments.DownloadFragment;
 import github.daneren2005.dsub.fragments.MainFragment;
 import github.daneren2005.dsub.fragments.SearchFragment;
 import github.daneren2005.dsub.fragments.SelectArtistFragment;
@@ -84,16 +86,17 @@ public class SubsonicFragmentActivity extends SubsonicActivity {
 			stopService(new Intent(this, DownloadService.class));
 			finish();
 			getImageLoader().clearCache();
+		} else if(getIntent().hasExtra(Constants.INTENT_EXTRA_NAME_DOWNLOAD_VIEW)) {
+			getIntent().putExtra(Constants.INTENT_EXTRA_FRAGMENT_TYPE, "Download");
+			if(drawerAdapter != null) {
+				drawerAdapter.setDownloadVisible(true);
+			}
 		} else if(getIntent().hasExtra(Constants.INTENT_EXTRA_NAME_DOWNLOAD)) {
 			DownloadService service = getDownloadService();
-			boolean downloadView = getIntent().hasExtra(Constants.INTENT_EXTRA_NAME_DOWNLOAD_VIEW);
-			if((service != null && service.getCurrentPlaying() != null) || downloadView) {
+			if((service != null && service.getCurrentPlaying() != null)) {
 				getIntent().removeExtra(Constants.INTENT_EXTRA_NAME_DOWNLOAD);
 				Intent intent = new Intent();
 				intent.setClass(this, DownloadActivity.class);
-				if(downloadView) {
-					intent.putExtra(Constants.INTENT_EXTRA_NAME_DOWNLOAD_VIEW, true);
-				}
 				startActivity(intent);
 			}
 		}
@@ -103,7 +106,7 @@ public class SubsonicFragmentActivity extends SubsonicActivity {
 			String fragmentType = getIntent().getStringExtra(Constants.INTENT_EXTRA_FRAGMENT_TYPE);
 			if(fragmentType == null && Util.isOpenToLibrary(this)) {
 				fragmentType = "Artist";
-				lastSelectedPosition = 1;
+				getIntent().putExtra(Constants.INTENT_EXTRA_FRAGMENT_TYPE, fragmentType);
 			}
 			currentFragment = getNewFragment(fragmentType);
 			
@@ -214,7 +217,10 @@ public class SubsonicFragmentActivity extends SubsonicActivity {
 
 		ChangeLog changeLog = new ChangeLog(this, Util.getPreferences(this));
 		if(changeLog.isFirstRun()) {
-			changeLog.getLogDialog().show();
+			Dialog log = changeLog.getLogDialog();
+			if(log != null) {
+				log.show();
+			}
 		}
 	}
 	
@@ -246,6 +252,7 @@ public class SubsonicFragmentActivity extends SubsonicActivity {
 		} else {
 			setIntent(intent);
 		}
+		drawer.closeDrawers();
 	}
 
 	@Override
@@ -272,6 +279,9 @@ public class SubsonicFragmentActivity extends SubsonicActivity {
 			args.putString(Constants.INTENT_EXTRA_NAME_NAME, getIntent().getStringExtra(Constants.INTENT_EXTRA_NAME_NAME));
 			if(getIntent().hasExtra(Constants.INTENT_EXTRA_NAME_ARTIST)) {
 				args.putBoolean(Constants.INTENT_EXTRA_NAME_ARTIST, true);
+			}
+			if(getIntent().hasExtra(Constants.INTENT_EXTRA_NAME_CHILD_ID)) {
+				args.putString(Constants.INTENT_EXTRA_NAME_CHILD_ID, getIntent().getStringExtra(Constants.INTENT_EXTRA_NAME_CHILD_ID));
 			}
 			fragment.setArguments(args);
 
@@ -310,11 +320,7 @@ public class SubsonicFragmentActivity extends SubsonicActivity {
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		if(super.onOptionsItemSelected(item)) {
-			return true;
-		} else {
-			return false;
-		}
+		return super.onOptionsItemSelected(item);
 	}
 
 	@Override
@@ -384,6 +390,8 @@ public class SubsonicFragmentActivity extends SubsonicActivity {
 			return new SelectBookmarkFragment();
 		} else if("Share".equals(fragmentType)) {
 			return new SelectShareFragment();
+		} else if("Download".equals(fragmentType)) {
+			return new DownloadFragment();
 		} else {
 			return new MainFragment();
 		}

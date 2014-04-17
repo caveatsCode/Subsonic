@@ -22,6 +22,7 @@
 	<string name="common.stream_external">Stream Video</string>
 	<string name="common.confirm">Confirm</string>
 	<string name="common.confirm_message">Do you want to %1$s %2$s?</string>
+	<string name="common.confirm_message_cache">cache</string>
 	<string name="common.empty">None found</string>
 	<string name="common.warning">Warning</string>
 
@@ -34,6 +35,7 @@
 	<string name="button_bar.bookmarks">Bookmarks</string>
 	<string name="button_bar.shares">Shares</string>
 	<string name="button_bar.chat">Chat</string>
+	<string name="button_bar.downloading">Downloading</string>
 
     <string name="main.welcome_title">Welcome!</string>
     <string name="main.welcome_text">Welcome to DSub! The app is currently configured to use the Subsonic demo server. After you\'ve
@@ -182,8 +184,6 @@
     <string name="download.jukebox_server_too_old">Remote control is not supported. Please upgrade your Subsonic server.</string>
     <string name="download.jukebox_offline">Remote control is not available in offline mode.</string>
     <string name="download.jukebox_not_authorized">Remote control is not allowed. Please enable jukebox mode in <b>Users &gt; Settings</b> on your Subsonic server.</string>
-	<string name="download.show_downloading">Show Downloading</string>
-	<string name="download.show_now_playing">Show Now Playing</string>
 	<string name="download.timer_length">Timer:</string>
 	<string name="download.start_timer">Start Timer</string>
 	<string name="download.stop_timer">Stop Timer</string>
@@ -195,8 +195,7 @@
 	<string name="download.downloading_title">Downloading %1$d songs</string>
 	<string name="download.downloading_summary">Current: %1$s</string>
 	<string name="download.downloading_summary_expanded">Current: %1$s
-		\nEstimated Size: %2$s
-		\nAverage Speed: %3$s kbps</string>
+		\nEstimated Size: %2$s</string>
 	<string name="download.failed_to_load">Failed to load</string>
 
 	<string name="sync.title">DSub: New media is available</string>
@@ -398,6 +397,11 @@
 	<string name="settings.menu_options.shared_summary">Show Share in menus</string>
 	<string name="settings.browse_by_tags">Browse By Tags</string>
 	<string name="settings.browse_by_tags_summary">Browse by tags instead of by folder structure.  Requires Subsonic 4.7+</string>
+	<string name="settings.override_system_language">Override System Language</string>
+	<string name="settings.override_system_language_summary">Display app in english even if the system language is something DSub has a translation for.  May need to clear the app from memory for changes to take affect.</string>
+	<string name="settings.drawer_items_title">Drawer Items</string>
+	<string name="settings.play_now_after">Play Now - After</string>
+	<string name="settings.play_now_after_summary">Play Now context menu for a song plays everything after selected item (like the Subsonic web GUI)</string>
 
 	<string name="shuffle.title">Shuffle By</string>
 	<string name="shuffle.startYear">Start Year:</string>

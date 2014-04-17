@@ -44,6 +44,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.Environment;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import github.daneren2005.dsub.domain.Artist;
 import github.daneren2005.dsub.domain.Genre;
@@ -235,18 +236,10 @@ public class FileUtil {
             File f = new File(fileSystemSafeDir(entry.getPath()));
             dir = new File(getMusicDirectory(context).getPath() + "/" + (entry.isDirectory() ? f.getPath() : f.getParent()));
         } else {
-			// Do a special lookup since 4.7+ doesn't match artist/album to entry.getPath
-			String s = Util.getRestUrl(context, null, false) + entry.getId();
-			String cacheName = (Util.isTagBrowsing(context) ? "album-" : "directory-") + s.hashCode() + ".ser";
-			MusicDirectory entryDir = FileUtil.deserialize(context, cacheName, MusicDirectory.class);
-
-			if(entryDir != null) {
-				List<MusicDirectory.Entry> songs = entryDir.getChildren(false, true);
-				if(songs.size() > 0) {
-					MusicDirectory.Entry firstSong = songs.get(0);
-					File songFile = FileUtil.getSongFile(context, firstSong);
-					dir = songFile.getParentFile();
-				}
+			MusicDirectory.Entry firstSong = lookupChild(context, entry, false);
+			if(firstSong != null) {
+				File songFile = FileUtil.getSongFile(context, firstSong);
+				dir = songFile.getParentFile();
 			}
 
 			if(dir == null) {
@@ -260,6 +253,22 @@ public class FileUtil {
         }
         return dir;
     }
+
+	public static MusicDirectory.Entry lookupChild(Context context, MusicDirectory.Entry entry, boolean allowDir) {
+		// Do a special lookup since 4.7+ doesn't match artist/album to entry.getPath
+		String s = Util.getRestUrl(context, null, false) + entry.getId();
+		String cacheName = (Util.isTagBrowsing(context) ? "album-" : "directory-") + s.hashCode() + ".ser";
+		MusicDirectory entryDir = FileUtil.deserialize(context, cacheName, MusicDirectory.class);
+
+		if(entryDir != null) {
+			List<MusicDirectory.Entry> songs = entryDir.getChildren(allowDir, true);
+			if(songs.size() > 0) {
+				return songs.get(0);
+			}
+		}
+
+		return null;
+	}
 	
 	public static String getPodcastPath(Context context, PodcastEpisode episode) {
 		return fileSystemSafe(episode.getArtist()) + "/" + fileSystemSafe(episode.getTitle());
@@ -305,7 +314,11 @@ public class FileUtil {
 
     public static File getDefaultMusicDirectory(Context context) {
 		if(DEFAULT_MUSIC_DIR == null) {
-			DEFAULT_MUSIC_DIR = createDirectory(context, "music");
+			File[] dirs = ContextCompat.getExternalFilesDirs(context, null);
+			DEFAULT_MUSIC_DIR = new File(dirs[dirs.length - 1], "music");
+			if (!DEFAULT_MUSIC_DIR.exists() && !DEFAULT_MUSIC_DIR.mkdirs()) {
+				Log.e(TAG, "Failed to create " + "music");
+			}
 		}
 
         return DEFAULT_MUSIC_DIR;
@@ -371,9 +384,13 @@ public class FileUtil {
 	public static boolean verifyCanWrite(File dir) {
 		if(ensureDirectoryExistsAndIsReadWritable(dir)) {
 			try {
-				File tmp = File.createTempFile("tmp", "tmp", dir);
-				tmp.delete();
-				return true;
+				File tmp = new File(dir, "tmp");
+				if(tmp.createNewFile()) {
+					tmp.delete();
+					return true;
+				} else {
+					return false;
+				}
 			} catch(Exception e) {
 				return false;
 			}
