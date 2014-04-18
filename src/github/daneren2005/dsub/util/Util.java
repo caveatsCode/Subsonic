@@ -981,7 +981,7 @@ public final class Util {
 
 	public static void showPlayingNotification(final Context context, final DownloadService downloadService, Handler handler, MusicDirectory.Entry song) {
         // Set the icon, scrolling text and timestamp
-        final Notification notification = new Notification(R.drawable.stat_notify_playing, song.getTitle(), System.currentTimeMillis());
+        final Notification notification = new Notification(R.drawable.notification_play, song.getTitle(), System.currentTimeMillis());
         notification.flags |= Notification.FLAG_NO_CLEAR | Notification.FLAG_ONGOING_EVENT;
 
 		boolean playing = downloadService.getPlayerState() == PlayerState.STARTED;
