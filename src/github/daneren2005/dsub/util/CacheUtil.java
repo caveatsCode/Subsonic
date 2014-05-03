@@ -61,20 +61,45 @@ public final class CacheUtil {
 
 		SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 		qb.setTables(EntryListContract.table +
-			" LEFT OUTER JOIN " + EntryListEntriesContract.table + " ON " + EntryListContract.id + " = " + EntryListEntriesContract.listId +
+			" LEFT OUTER JOIN " + EntryListEntriesContract.table + " ON " + EntryListContract.table + "." + EntryListContract.id + " = " + EntryListEntriesContract.table + "." + EntryListEntriesContract.listId +
 			" LEFT OUTER JOIN " + EntryContract.table + " ON " + EntryListEntriesContract.entryId + " = " + EntryContract.id);
 
-		String selection = EntryListContract.id + " LIKE ? AND " + EntryListContract.table + "." + EntryListContract.server + " LIKE ?";
+		String selection = EntryListContract.table + "." + EntryListContract.id + " LIKE ? AND " + EntryListContract.table + "." + EntryListContract.server + " LIKE ?";
 		String[] selectionArgs = {id, Integer.toString(server)};
 
 		Cursor cursor = qb.query(db, projection, selection, selectionArgs, null, null, null);
-		cursor.moveToFirst();
+		if(!cursor.moveToFirst()) {
+			return null;
+		}
 
 		MusicDirectory dir = new MusicDirectory();
 		do {
 			Entry entry = new Entry();
 			entry.setId(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.id)));
-			// TODO: Finish
+			entry.setParent(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.parent)));
+			entry.setGrandParent(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.grandParent)));
+			entry.setAlbumId(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.albumId)));
+			entry.setArtistId(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.artistId)));
+			entry.setDirectory(cursor.getInt(cursor.getColumnIndexOrThrow(EntryContract.directory)) > 0);
+			entry.setTitle(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.title)));
+			entry.setAlbum(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.album)));
+			entry.setArtist(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.artist)));
+			entry.setTrack(cursor.getInt(cursor.getColumnIndexOrThrow(EntryContract.track)));
+			entry.setYear(cursor.getInt(cursor.getColumnIndexOrThrow(EntryContract.year)));
+			entry.setGenre(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.genre)));
+			entry.setContentType(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.contentType)));
+			entry.setSuffix(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.suffix)));
+			entry.setTranscodedContentType(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.transcodedContentType)));
+			entry.setTranscodedSuffix(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.transcodedSuffix)));
+			entry.setCoverArt(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.coverArt)));
+			entry.setSize(cursor.getLong(cursor.getColumnIndexOrThrow(EntryContract.size)));
+			entry.setDuration(cursor.getInt(cursor.getColumnIndexOrThrow(EntryContract.duration)));
+			entry.setBitRate(cursor.getInt(cursor.getColumnIndexOrThrow(EntryContract.bitRate)));
+			entry.setPath(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.path)));
+			entry.setVideo(cursor.getInt(cursor.getColumnIndexOrThrow(EntryContract.video)) > 0);
+			entry.setDiscNumber(cursor.getInt(cursor.getColumnIndexOrThrow(EntryContract.discNumber)));
+			entry.setStarred(cursor.getInt(cursor.getColumnIndexOrThrow(EntryContract.starred)) > 0);
+			// entry.setBookmark(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.bookmark)));
 
 			dir.addChild(entry);
 		} while(cursor.moveToNext());

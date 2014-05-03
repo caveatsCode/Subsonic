@@ -23,11 +23,11 @@ import static github.daneren2005.dsub.util.DbContract.EntryListContract;
 import static github.daneren2005.dsub.util.DbContract.EntryListEntriesContract;
 
 public class DbHelper extends SQLiteOpenHelper {
-	public static final int DATABASE_VERSION = 1;
+	public static final int DATABASE_VERSION = 3;
 	public static final String DATABASE_NAME = "entries.db";
 
-	private static final String SQL_CREATE_ENTRIES = "CREATE TABLE " + EntryContract.table +
-		EntryContract._ID + "BIGINT PRIMARY KEY, " + EntryContract.id + " TEXT, " + EntryContract.parent + " TEXT, " +
+	private static final String SQL_CREATE_ENTRIES = "CREATE TABLE " + EntryContract.table + " (" +
+		EntryContract._ID + " BIGINT PRIMARY KEY, " + EntryContract.server + " TEXT, " + EntryContract.id + " TEXT, " + EntryContract.parent + " TEXT, " +
 		EntryContract.grandParent + " TEXT, " + EntryContract.albumId + " TEXT, " + EntryContract.artistId + " TEXT, " +
 		EntryContract.directory + " BOOLEAN, " + EntryContract.title + " TEXT, " + EntryContract.album + " TEXT, " +
 		EntryContract.artist +" TEXT, " + EntryContract.track + " INTEGER, " + EntryContract.year + " INTEGER, " +
@@ -35,13 +35,13 @@ public class DbHelper extends SQLiteOpenHelper {
 		EntryContract.transcodedContentType + " TEXT, " + EntryContract.transcodedSuffix + " TEXT, " +
 		EntryContract.coverArt + " TEXT, " + EntryContract.size + " BIGINT, " + EntryContract.duration + " INTEGER, " +
 		EntryContract.bitRate + " INTEGER, " + EntryContract.path + " TEXT, " + EntryContract.video + " BOOLEAN, " +
-		EntryContract.discNumber + " INTEGER, " + EntryContract.starred + " BOOLEAN, " + EntryContract.bookmark + " INTEGER";
-	public static final String SQL_CREATE_ENTRY_LIST = "CREATE TABLE " + EntryListContract.table +
-		EntryListContract._ID + "BIGINT PRIMARY KEY, " + EntryListContract.id + " TEXT, " + EntryListContract.name + " TEXT, " +
-		EntryListContract.type + " SMALLINT, " + EntryListContract.parent + " TEXT, " + EntryListContract.server + " INTEGER";
-	public static final String SQL_CREATE_ENTRY_LIST_ENTRIES = "CREATE TABLE " + EntryListEntriesContract.table +
-		EntryListEntriesContract._ID + "BIGINT PRIMARY KEY, " + EntryListEntriesContract.listId + " TEXT, "+
-		EntryListEntriesContract.entryId + " TEXT";
+		EntryContract.discNumber + " INTEGER, " + EntryContract.starred + " BOOLEAN, " + EntryContract.bookmark + " INTEGER)";
+	public static final String SQL_CREATE_ENTRY_LIST = "CREATE TABLE " + EntryListContract.table + " (" +
+		EntryListContract._ID + " BIGINT PRIMARY KEY, " + EntryListContract.id + " TEXT, " + EntryListContract.name + " TEXT, " +
+		EntryListContract.type + " SMALLINT, " + EntryListContract.parent + " TEXT, " + EntryListContract.server + " INTEGER)";
+	public static final String SQL_CREATE_ENTRY_LIST_ENTRIES = "CREATE TABLE " + EntryListEntriesContract.table + " (" +
+		EntryListEntriesContract._ID + " BIGINT PRIMARY KEY, " + EntryListEntriesContract.listId + " TEXT, "+
+		EntryListEntriesContract.entryId + " TEXT)";
 
 	private static final String SQL_DELETE_ENTRIES = "DROP TABLE IF EXISTS " + EntryContract.table;
 	private static final String SQL_DELETE_ENTRY_LIST = "DROP TABLE IF EXISTS " + EntryListContract.table;

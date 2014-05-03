@@ -58,7 +58,7 @@ public final class DbContract {
 		public static final String id = "listId";
 		public static final String name = "name";
 		public static final String type = "type";
-		public static final String parent = "parent";
+		public static final String parent = "parentEntry";
 	}
 
 	public static int PLAYLIST = 1;
