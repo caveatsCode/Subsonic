@@ -30,7 +30,6 @@ import static github.daneren2005.dsub.domain.PlayerState.STOPPED;
 
 import github.daneren2005.dsub.audiofx.AudioEffectsController;
 import github.daneren2005.dsub.audiofx.EqualizerController;
-import github.daneren2005.dsub.audiofx.LoudnessEnhancerController;
 import github.daneren2005.dsub.audiofx.VisualizerController;
 import github.daneren2005.dsub.domain.Bookmark;
 import github.daneren2005.dsub.domain.MusicDirectory;
@@ -70,9 +69,9 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.support.v7.media.MediaRouteSelector;
+import android.support.v7.media.MediaRouter;
 import android.util.Log;
 import android.support.v4.util.LruCache;
-import java.net.URLEncoder;
 
 /**
  * @author Sindre Mehus
@@ -509,12 +508,16 @@ public class DownloadService extends Service {
 	}
 
 	public synchronized void clearIncomplete() {
-		reset();
 		Iterator<DownloadFile> iterator = downloadList.iterator();
 		while (iterator.hasNext()) {
 			DownloadFile downloadFile = iterator.next();
 			if (!downloadFile.isCompleteFileAvailable()) {
 				iterator.remove();
+				
+				// Reset if the current playing song has been removed
+				if(currentPlaying == downloadFile) {
+					reset();
+				}
 			}
 		}
 		lifecycleSupport.serializeDownloadQueue();
@@ -1113,6 +1116,10 @@ public class DownloadService extends Service {
 		return remoteState != RemoteControlState.LOCAL;
 	}
 
+	public RemoteController getRemoteController() {
+		return remoteController;
+	}
+
 	public void setRemoteEnabled(RemoteControlState newState) {
 		if(instance != null) {
 			setRemoteEnabled(newState, null);
@@ -1227,8 +1234,19 @@ public class DownloadService extends Service {
 		}
 	}
 
-	public void setRemoteVolume(boolean up) {
-		remoteController.setVolume(up);
+	public void registerRoute(MediaRouter router) {
+		mRemoteControl.registerRoute(router);
+	}
+	public void unregisterRoute(MediaRouter router) {
+		mRemoteControl.unregisterRoute(router);
+	}
+
+	public void updateRemoteVolume(boolean up) {
+		if(remoteState == RemoteControlState.JUKEBOX_SERVER) {
+			mediaRouter.getSelectedRoute().requestUpdateVolume(up ? 1 : -1);
+		} else {
+			remoteController.updateVolume(up);
+		}
 	}
 
 	public void startRemoteScan() {
@@ -1507,10 +1525,11 @@ public class DownloadService extends Service {
 		int currentPlayingIndex = getCurrentPlayingIndex();
 		DownloadFile movedSong = list.remove(from);
 		list.add(to, movedSong);
+		this.currentPlayingIndex = downloadList.indexOf(currentPlaying);
 		if(remoteState != RemoteControlState.LOCAL && mainList) {
 			updateJukeboxPlaylist();
-		} else if(mainList && (movedSong == nextPlaying || (currentPlayingIndex + 1) == to)) {
-			// Moving next playing or moving a song to be next playing
+		} else if(mainList && (movedSong == nextPlaying || movedSong == currentPlaying || (currentPlayingIndex + 1) == to)) {
+			// Moving next playing, current playing, or moving a song to be next playing
 			setNextPlaying();
 		}
 	}
@@ -1518,7 +1537,11 @@ public class DownloadService extends Service {
 	private void handleError(Exception x) {
 		Log.w(TAG, "Media player error: " + x, x);
 		if(mediaPlayer != null) {
-			mediaPlayer.reset();
+			try {
+				mediaPlayer.reset();
+			} catch(Exception e) {
+				Log.e(TAG, "Failed to reset player in error handler");
+			}
 		}
 		setPlayerState(IDLE);
 	}

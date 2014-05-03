@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
@@ -14,7 +15,9 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AbsListView;
 import android.widget.AdapterView;
+import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -22,12 +25,13 @@ import github.daneren2005.dsub.R;
 import github.daneren2005.dsub.domain.MusicDirectory;
 import github.daneren2005.dsub.domain.Share;
 import github.daneren2005.dsub.util.ImageLoader;
+import github.daneren2005.dsub.view.AlbumGridAdapter;
 import github.daneren2005.dsub.view.EntryAdapter;
 
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
-import com.mobeta.android.dslv.*;
+
 import github.daneren2005.dsub.activity.DownloadActivity;
 import github.daneren2005.dsub.domain.PodcastEpisode;
 import github.daneren2005.dsub.service.MusicService;
@@ -48,13 +52,16 @@ import java.util.Set;
 public class SelectDirectoryFragment extends SubsonicFragment implements AdapterView.OnItemClickListener {
 	private static final String TAG = SelectDirectoryFragment.class.getSimpleName();
 
-	private DragSortListView entryList;
+	private GridView albumList;
+	private ListView entryList;
 	private View emptyView;
 	private boolean hideButtons = false;
 	private Boolean licenseValid;
 	private boolean showHeader = true;
 	private EntryAdapter entryAdapter;
+	private List<MusicDirectory.Entry> albums;
 	private List<MusicDirectory.Entry> entries;
+	private boolean albumContext = false;
 
 	String id;
 	String name;
@@ -70,6 +77,7 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 	boolean showAll = false;
 	boolean restoredInstance = false;
 	boolean lookupParent = false;
+	boolean largeAlbums = false;
 	
 	public SelectDirectoryFragment() {
 		super();
@@ -80,6 +88,7 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 		super.onCreate(bundle);
 		if(bundle != null) {
 			entries = (List<MusicDirectory.Entry>) bundle.getSerializable(Constants.FRAGMENT_LIST);
+			albums = (List<MusicDirectory.Entry>) bundle.getSerializable(Constants.FRAGMENT_LIST2);
 			restoredInstance = true;
 		}
 	}
@@ -88,34 +97,11 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 	public void onSaveInstanceState(Bundle outState) {
 		super.onSaveInstanceState(outState);
 		outState.putSerializable(Constants.FRAGMENT_LIST, (Serializable) entries);
+		outState.putSerializable(Constants.FRAGMENT_LIST2, (Serializable) albums);
 	}
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle bundle) {
-		rootView = inflater.inflate(R.layout.select_album, container, false);
-
-		entryList = (DragSortListView) rootView.findViewById(R.id.select_album_entries);
-		entryList.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
-		entryList.setOnItemClickListener(this);
-		entryList.setDropListener(new DragSortListView.DropListener() {
-			@Override
-			public void drop(int from, int to) {
-				int max = entries.size();
-				if(to >= max) {
-					to = max - 1;
-				}
-				else if(to < 0) {
-					to = 0;
-				}
-				entries.add(to, entries.remove(from));
-				entryAdapter.notifyDataSetChanged();
-			}
-		});
-
-		emptyView = rootView.findViewById(R.id.select_album_empty);
-
-		registerForContextMenu(entryList);
-
 		Bundle args = getArguments();
 		if(args != null) {
 			id = args.getString(Constants.INTENT_EXTRA_NAME_ID);
@@ -140,8 +126,59 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 			}
 			if(entries == null) {
 				entries = (List<MusicDirectory.Entry>) args.getSerializable(Constants.FRAGMENT_LIST);
+				albums = (List<MusicDirectory.Entry>) args.getSerializable(Constants.FRAGMENT_LIST2);
 			}
 		}
+
+		rootView = inflater.inflate(R.layout.select_album, container, false);
+
+		refreshLayout = (SwipeRefreshLayout) rootView.findViewById(R.id.refresh_layout);
+		refreshLayout.setOnRefreshListener(this);
+
+		entryList = (ListView) rootView.findViewById(R.id.select_album_entries);
+		entryList.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
+		entryList.setOnItemClickListener(this);
+		setupScrollList(entryList);
+
+		if(Util.getPreferences(context).getBoolean(Constants.PREFERENCES_KEY_LARGE_ALBUM_ART, true)) {
+			largeAlbums = true;
+		}
+
+		if(albumListType == null || "starred".equals(albumListType) || !largeAlbums) {
+			albumList = (GridView) inflater.inflate(R.layout.unscrollable_grid_view, entryList, false);
+			entryList.addHeaderView(albumList);
+		} else {
+			ViewGroup rootGroup = (ViewGroup) rootView.findViewById(R.id.select_album_layout);
+			albumList = (GridView) inflater.inflate(R.layout.grid_view, rootGroup, false);
+			rootGroup.removeView(entryList);
+			rootGroup.addView(albumList);
+
+			setupScrollList(albumList);
+		}
+		albumList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+			@Override
+			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+				MusicDirectory.Entry entry = (MusicDirectory.Entry) parent.getItemAtPosition(position);
+				SubsonicFragment fragment = new SelectDirectoryFragment();
+				Bundle args = new Bundle();
+				args.putString(Constants.INTENT_EXTRA_NAME_ID, entry.getId());
+				args.putString(Constants.INTENT_EXTRA_NAME_NAME, entry.getTitle());
+				if ("newest".equals(albumListType)) {
+					args.putBoolean(Constants.INTENT_EXTRA_REFRESH_LISTINGS, true);
+				}
+				if(entry.getArtist() == null && entry.getParent() == null) {
+					args.putBoolean(Constants.INTENT_EXTRA_NAME_ARTIST, true);
+				}
+				fragment.setArguments(args);
+
+				replaceFragment(fragment, true);
+			}
+		});
+
+		emptyView = rootView.findViewById(R.id.select_album_empty);
+
+		registerForContextMenu(entryList);
+		registerForContextMenu(albumList);
 
 		if(entries == null) {
 			if(primaryFragment || secondaryFragment) {
@@ -168,7 +205,7 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 		}
 		else if(hideButtons && !showAll) {
 			if(albumListType != null) {
-				menuInflater.inflate(R.menu.select_album_list, menu);
+				menuInflater.inflate(R.menu.empty, menu);
 			} else {
 				menuInflater.inflate(R.menu.select_album, menu);
 			}
@@ -268,7 +305,18 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 
 		AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) menuInfo;
 
-		MusicDirectory.Entry entry = (MusicDirectory.Entry) entryList.getItemAtPosition(info.position);
+		MusicDirectory.Entry entry;
+		if(view.getId() == R.id.select_album_entries) {
+			if(info.position == 0) {
+				return;
+			}
+			entry = (MusicDirectory.Entry) entryList.getItemAtPosition(info.position);
+			albumContext = false;
+		} else {
+			entry = (MusicDirectory.Entry) albumList.getItemAtPosition(info.position);
+			albumContext = true;
+		}
+
 		onCreateContextMenu(menu, view, menuInfo, entry);
 		if(!entry.isVideo() && !Util.isOffline(context) && playlistId == null && (podcastId == null  || Util.isOffline(context) && podcastId != null)) {
 			menu.removeItem(R.id.song_menu_remove_playlist);
@@ -294,7 +342,16 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 		}
 
 		AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) menuItem.getMenuInfo();
-		Object selectedItem = entries.get(showHeader ? (info.position - 1) : info.position);
+		Object selectedItem;
+		if(albumContext) {
+			selectedItem = albums.get(showHeader ? (info.position - 1) : info.position);
+		} else {
+			if(info.position == 0) {
+				return false;
+			}
+			info.position--;
+			selectedItem = entries.get(showHeader ? (info.position - 1) : info.position);
+		}
 
 		if(Util.getPreferences(context).getBoolean(Constants.PREFERENCES_KEY_PLAY_NOW_AFTER, false) && menuItem.getItemId() == R.id.song_menu_play_now) {
 			List<MusicDirectory.Entry> songs = new ArrayList<MusicDirectory.Entry>();
@@ -531,7 +588,7 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 						SelectDirectoryFragment.this.albumListType = "genres-songs";
 						result = service.getSongsByGenre(albumListExtra, size, 0, context, this);
 					}
-				} else if("genres".equals(albumListType)) {
+				} else if("genres".equals(albumListType) || "genres-songs".equals(albumListType)) {
 					result = service.getSongsByGenre(albumListExtra, size, 0, context, this);
 				} else {
 					result = service.getAlbumList(albumListType, size, 0, context, this);
@@ -559,7 +616,13 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 
 		@Override
 		protected void done(Pair<MusicDirectory, Boolean> result) {
-			entries = result.getFirst().getChildren();
+			if(largeAlbums) {
+				albums = result.getFirst().getChildren(true, false);
+				entries = result.getFirst().getChildren(false, true);
+			} else {
+				albums = new ArrayList<MusicDirectory.Entry>();
+				entries = result.getFirst().getChildren();
+			}
             licenseValid = result.getSecond();
             finishLoading();
 		}
@@ -576,8 +639,10 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
         if (songCount > 0 && !"root".equals(id)) {
             if(showHeader) {
                 View header = createHeader(entries);
-                if(header != null) {
+                if(header != null && entryList != null) {
+					entryList.removeHeaderView(albumList);
                     entryList.addHeaderView(header, null, false);
+					entryList.addHeaderView(albumList);
                 }
             }
         } else {
@@ -587,13 +652,24 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 			}
         }
 
-        emptyView.setVisibility(entries.isEmpty() ? View.VISIBLE : View.GONE);
-        entryAdapter = new EntryAdapter(context, getImageLoader(), entries, (podcastId == null));
-        if(albumListType == null || "starred".equals(albumListType)) {
-            entryList.setAdapter(entryAdapter);
-        } else {
-            entryList.setAdapter(new AlbumListAdapter(context, entryAdapter, albumListType, albumListExtra, albumListSize));
-        }
+		emptyView.setVisibility((entries.isEmpty() && albums.isEmpty()) ? View.VISIBLE : View.GONE);
+		entryAdapter = new EntryAdapter(context, getImageLoader(), entries, (podcastId == null));
+		entryList.setAdapter(entryAdapter);
+		if("genres-songs".equals(albumListType)) {
+			ViewGroup rootGroup = (ViewGroup) rootView.findViewById(R.id.select_album_layout);
+			if(rootGroup.findViewById(R.id.gridview) != null && largeAlbums) {
+				rootGroup.removeView(albumList);
+				rootGroup.addView(entryList);
+			}
+
+			entryList.setAdapter(new AlbumListAdapter(context, entryAdapter, albumListType, albumListExtra, albumListSize));
+		} else if(largeAlbums) {
+			if(albumListType == null || "starred".equals(albumListType)) {
+				albumList.setAdapter(new AlbumGridAdapter(context, getImageLoader(), albums, !artist));
+			} else {
+				albumList.setAdapter(new AlbumListAdapter(context, new AlbumGridAdapter(context, getImageLoader(), albums, true), albumListType, albumListExtra, albumListSize));
+			}
+		}
         entryList.setVisibility(View.VISIBLE);
         context.supportInvalidateOptionsMenu();
 

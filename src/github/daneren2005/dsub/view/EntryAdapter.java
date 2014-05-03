@@ -33,28 +33,28 @@ import github.daneren2005.dsub.util.ImageLoader;
  */
 public class EntryAdapter extends ArrayAdapter<MusicDirectory.Entry> {
 	private final static String TAG = EntryAdapter.class.getSimpleName();
-    private final Context activity;
-    private final ImageLoader imageLoader;
-    private final boolean checkable;
+	private final Context activity;
+	private final ImageLoader imageLoader;
+	private final boolean checkable;
 	private List<MusicDirectory.Entry> entries;
 
-    public EntryAdapter(Context activity, ImageLoader imageLoader, List<MusicDirectory.Entry> entries, boolean checkable) {
-        super(activity, android.R.layout.simple_list_item_1, entries);
+	public EntryAdapter(Context activity, ImageLoader imageLoader, List<MusicDirectory.Entry> entries, boolean checkable) {
+		super(activity, android.R.layout.simple_list_item_1, entries);
 		this.entries = entries;
-        this.activity = activity;
-        this.imageLoader = imageLoader;
-        this.checkable = checkable;
-    }
-	
+		this.activity = activity;
+		this.imageLoader = imageLoader;
+		this.checkable = checkable;
+	}
+
 	public void removeAt(int position) {
 		entries.remove(position);
 	}
 
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-        MusicDirectory.Entry entry = getItem(position);
+	@Override
+	public View getView(int position, View convertView, ViewGroup parent) {
+		MusicDirectory.Entry entry = getItem(position);
 
-        if (entry.isDirectory()) {
+		if (entry.isDirectory()) {
 			if(entry.getArtist() != null || entry.getParent() != null) {
 				AlbumView view;
 				view = new AlbumView(activity);
@@ -65,15 +65,15 @@ public class EntryAdapter extends ArrayAdapter<MusicDirectory.Entry> {
 				view.setObject(entry);
 				return view;
 			}
-        } else {
-            SongView view;
-            if (convertView != null && convertView instanceof SongView) {
-                view = (SongView) convertView;
-            } else {
-                view = new SongView(activity);
-            }
-            view.setObject(entry, checkable);
-            return view;
-        }
-    }
+		} else {
+			SongView view;
+			if (convertView != null && convertView instanceof SongView) {
+				view = (SongView) convertView;
+			} else {
+				view = new SongView(activity);
+			}
+			view.setObject(entry, checkable);
+			return view;
+		}
+	}
 }

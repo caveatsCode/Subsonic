@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -22,6 +23,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.AbsListView;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
@@ -126,6 +128,10 @@ public class ChatFragment extends SubsonicFragment {
 			chatListView.setAdapter(chatAdapter);
 		}
 		setTitle(R.string.button_bar_chat);
+
+		refreshLayout = (SwipeRefreshLayout) rootView.findViewById(R.id.refresh_layout);
+		refreshLayout.setOnRefreshListener(this);
+		setupScrollList(chatListView);
 
 		return rootView;
 	}

@@ -19,6 +19,7 @@
 package github.daneren2005.dsub.fragments;
 
 import android.os.Bundle;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -26,6 +27,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AbsListView;
 import android.widget.Adapter;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -75,8 +77,12 @@ public abstract class SelectListFragment<T> extends SubsonicFragment implements 
 	public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle bundle) {
 		rootView = inflater.inflate(R.layout.abstract_list_fragment, container, false);
 
+		refreshLayout = (SwipeRefreshLayout) rootView.findViewById(R.id.refresh_layout);
+		refreshLayout.setOnRefreshListener(this);
+
 		listView = (ListView)rootView.findViewById(R.id.fragment_list);
 		listView.setOnItemClickListener(this);
+		setupScrollList(listView);
 		registerForContextMenu(listView);
 		emptyView = rootView.findViewById(R.id.fragment_list_empty);
 

@@ -30,6 +30,7 @@ import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.GestureDetector;
@@ -37,6 +38,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AbsListView;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -75,7 +77,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
-public class SubsonicFragment extends Fragment {
+public class SubsonicFragment extends Fragment implements SwipeRefreshLayout.OnRefreshListener {
 	private static final String TAG = SubsonicFragment.class.getSimpleName();
 	private static int TAG_INC = 10;
 	private int tag;
@@ -92,6 +94,7 @@ public class SubsonicFragment extends Fragment {
 	protected Share share;
 	protected boolean artist = false;
 	protected boolean artistOverride = false;
+	protected SwipeRefreshLayout refreshLayout;
 	
 	public SubsonicFragment() {
 		super();
@@ -135,9 +138,6 @@ public class SubsonicFragment extends Fragment {
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
-			case R.id.menu_refresh:
-				refresh(true);
-				return true;
 			case R.id.menu_shuffle:
 				onShuffleRequested();
 				return true;
@@ -406,6 +406,12 @@ public class SubsonicFragment extends Fragment {
 
 	}
 
+	@Override
+	public void onRefresh() {
+		refreshLayout.setRefreshing(false);
+		refresh();
+	}
+
 	protected void exit() {
 		if(context.getClass() != SubsonicFragmentActivity.class) {
 			Intent intent = new Intent(context, SubsonicFragmentActivity.class);
@@ -453,6 +459,19 @@ public class SubsonicFragment extends Fragment {
 	}
 	public CharSequence getTitle() {
 		return this.title;
+	}
+
+	protected void setupScrollList(final AbsListView listView) {
+		listView.setOnScrollListener(new AbsListView.OnScrollListener() {
+			@Override
+			public void onScrollStateChanged(AbsListView view, int scrollState) {}
+
+			@Override
+			public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+				int topRowVerticalPosition = (listView.getChildCount() == 0) ? 0 : listView.getChildAt(0).getTop();
+				refreshLayout.setEnabled(topRowVerticalPosition >= 0 && listView.getFirstVisiblePosition() == 0);
+			}
+		});
 	}
 
 	protected void warnIfNetworkOrStorageUnavailable() {
