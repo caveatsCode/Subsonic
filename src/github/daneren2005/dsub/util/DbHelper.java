@@ -46,9 +46,19 @@ public class DbHelper extends SQLiteOpenHelper {
 	private static final String SQL_DELETE_ENTRIES = "DROP TABLE IF EXISTS " + EntryContract.table;
 	private static final String SQL_DELETE_ENTRY_LIST = "DROP TABLE IF EXISTS " + EntryListContract.table;
 	private static final String SQL_DELETE_ENTRY_LIST_ENTRIES = "DROP TABLE IF EXISTS " + EntryListEntriesContract.table;
+	
+	private static DbHelper instance;
 
 	public DbHelper(Context context) {
 		super(context, DATABASE_NAME, null, DATABASE_VERSION);
+	}
+	
+	public static DbHelper getInstance(Context context) {
+		if(instance == null) {
+			instance = new DbHelper(context.getApplicationContext());
+		}
+		
+		return instance;
 	}
 
 	@Override
