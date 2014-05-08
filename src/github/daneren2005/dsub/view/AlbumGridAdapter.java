@@ -37,6 +37,20 @@ public class AlbumGridAdapter extends ArrayAdapter<MusicDirectory.Entry> {
 		this.entries = entries;
 		this.activity = activity;
 		this.imageLoader = imageLoader;
+		
+		// Always show artist if they aren't all the same
+		if(!showArtist) {
+			String artist = null;
+			for(MusicDirectory.Entry entry: entries) {
+				if(artist == null) {
+					artist = entry.getArtist();
+				}
+				
+				if(artist != null && !artist.equals(entry.getArtist())) {
+					showArtist = true;
+				}
+			}
+		}
 		this.showArtist = showArtist;
 	}
 

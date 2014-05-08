@@ -15,10 +15,10 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AbsListView;
 import android.widget.AdapterView;
 import android.widget.GridView;
 import android.widget.ImageView;
+import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import github.daneren2005.dsub.R;
@@ -62,6 +62,7 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 	private List<MusicDirectory.Entry> albums;
 	private List<MusicDirectory.Entry> entries;
 	private boolean albumContext = false;
+	private boolean addAlbumHeader = false;
 
 	String id;
 	String name;
@@ -127,6 +128,10 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 			if(entries == null) {
 				entries = (List<MusicDirectory.Entry>) args.getSerializable(Constants.FRAGMENT_LIST);
 				albums = (List<MusicDirectory.Entry>) args.getSerializable(Constants.FRAGMENT_LIST2);
+
+				if(albums == null) {
+					albums = new ArrayList<MusicDirectory.Entry>();
+				}
 			}
 		}
 
@@ -146,7 +151,7 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 
 		if(albumListType == null || "starred".equals(albumListType) || !largeAlbums) {
 			albumList = (GridView) inflater.inflate(R.layout.unscrollable_grid_view, entryList, false);
-			entryList.addHeaderView(albumList);
+			addAlbumHeader = true;
 		} else {
 			ViewGroup rootGroup = (ViewGroup) rootView.findViewById(R.id.select_album_layout);
 			albumList = (GridView) inflater.inflate(R.layout.grid_view, rootGroup, false);
@@ -640,9 +645,7 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
             if(showHeader) {
                 View header = createHeader(entries);
                 if(header != null && entryList != null) {
-					entryList.removeHeaderView(albumList);
                     entryList.addHeaderView(header, null, false);
-					entryList.addHeaderView(albumList);
                 }
             }
         } else {
@@ -652,9 +655,17 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 			}
         }
 
+		// Needs to be added here, GB crashes if you to try to remove the header view before adapter is set
+		if(addAlbumHeader) {
+			entryList.addHeaderView(albumList);
+			addAlbumHeader = false;
+		}
+
 		emptyView.setVisibility((entries.isEmpty() && albums.isEmpty()) ? View.VISIBLE : View.GONE);
+		// Always going to have entries in entryAdapter
 		entryAdapter = new EntryAdapter(context, getImageLoader(), entries, (podcastId == null));
-		entryList.setAdapter(entryAdapter);
+		ListAdapter listAdapter = entryAdapter;
+		// Song-only genre needs to always be entry list + infinite adapter
 		if("genres-songs".equals(albumListType)) {
 			ViewGroup rootGroup = (ViewGroup) rootView.findViewById(R.id.select_album_layout);
 			if(rootGroup.findViewById(R.id.gridview) != null && largeAlbums) {
@@ -662,14 +673,19 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 				rootGroup.addView(entryList);
 			}
 
-			entryList.setAdapter(new AlbumListAdapter(context, entryAdapter, albumListType, albumListExtra, albumListSize));
-		} else if(largeAlbums) {
-			if(albumListType == null || "starred".equals(albumListType)) {
-				albumList.setAdapter(new AlbumGridAdapter(context, getImageLoader(), albums, !artist));
-			} else {
+			listAdapter = new AlbumListAdapter(context, entryAdapter, albumListType, albumListExtra, albumListSize);
+		} else if((albumListType == null || "starred".equals(albumListType)) && largeAlbums) {
+			// Only set standard album adapter if not album list and largeAlbums is true
+			albumList.setAdapter(new AlbumGridAdapter(context, getImageLoader(), albums, !artist));
+		} else {
+			// If album list, use infinite adapters for either depending on whether or not largeAlbums is true
+			if(largeAlbums) {
 				albumList.setAdapter(new AlbumListAdapter(context, new AlbumGridAdapter(context, getImageLoader(), albums, true), albumListType, albumListExtra, albumListSize));
+			} else {
+				listAdapter = new AlbumListAdapter(context, entryAdapter, albumListType, albumListExtra, albumListSize);
 			}
 		}
+		entryList.setAdapter(listAdapter);
         entryList.setVisibility(View.VISIBLE);
         context.supportInvalidateOptionsMenu();
 
@@ -700,6 +716,9 @@ public class SelectDirectoryFragment extends SubsonicFragment implements Adapter
 				hasSubFolders = true;
 				break;
 			}
+		}
+		if(albums.size() > 0) {
+			hasSubFolders = true;
 		}
 
 		if (hasSubFolders && (id != null || share != null)) {
