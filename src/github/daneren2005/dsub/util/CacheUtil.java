@@ -74,6 +74,7 @@ public final class CacheUtil {
 
 		Cursor cursor = qb.query(db, projection, selection, selectionArgs, null, null, null);
 		if(!cursor.moveToFirst()) {
+			cursor.close();
 			return null;
 		}
 
@@ -110,6 +111,7 @@ public final class CacheUtil {
 
 			dir.addChild(entry);
 		} while(cursor.moveToNext());
+		cursor.close();
 
 		return dir;
 	}
