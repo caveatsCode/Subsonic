@@ -71,7 +71,8 @@ public final class DbContract {
 	public static abstract class EntryListEntriesContract implements BaseColumns {
 		public static final String table = "entryListEntries";
 
-		public static final String listId = "listId";
-		public static final String entryId = "entryId";
+		public static final String server = "server";
+		public static final String listId = "listIds";
+		public static final String entryId = "entryIds";
 	}
 }

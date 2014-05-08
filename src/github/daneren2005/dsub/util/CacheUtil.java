@@ -19,6 +19,7 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteQueryBuilder;
+import android.util.Log;
 
 import java.util.List;
 
@@ -30,8 +31,12 @@ import static github.daneren2005.dsub.util.DbContract.EntryListContract;
 import static github.daneren2005.dsub.util.DbContract.EntryListEntriesContract;
 
 public final class CacheUtil {
+	private static final String TAG = CacheUtil.class.getSimpleName();
+
 	public static MusicDirectory getEntries(SQLiteDatabase db, int server, String id, int type) {
 		String[] projection = {
+			EntryListContract.id,
+			EntryListContract.name,
 			EntryContract.id,
 			EntryContract.parent,
 			EntryContract.grandParent,
@@ -73,6 +78,8 @@ public final class CacheUtil {
 		}
 
 		MusicDirectory dir = new MusicDirectory();
+		dir.setId(cursor.getString(cursor.getColumnIndexOrThrow(EntryListContract.id)));
+		dir.setName(cursor.getString(cursor.getColumnIndexOrThrow(EntryListContract.name)));
 		do {
 			Entry entry = new Entry();
 			entry.setId(cursor.getString(cursor.getColumnIndexOrThrow(EntryContract.id)));
@@ -120,11 +127,14 @@ public final class CacheUtil {
 		int updated = db.update(EntryListContract.table, values, selection, selectionArgs);
 
 		if(updated == 0) {
-			db.insert(EntryListContract.table, null, values);
+			db.insertOrThrow(EntryListContract.table, null, values);
 		}
 
 		// Update all entry data
 		updateEntries(db, server, dir.getChildren());
+
+		// Update parent/entry linkage
+		updateEntryList(db, server, dir.getId(), dir.getChildren());
 	}
 	public static void updateEntries(SQLiteDatabase db, int server, List<Entry> entries) {
 		for(Entry entry: entries) {
@@ -135,7 +145,7 @@ public final class CacheUtil {
 			values.put(EntryContract.grandParent, entry.getGrandParent());
 			values.put(EntryContract.albumId, entry.getAlbumId());
 			values.put(EntryContract.artistId, entry.getArtistId());
-			values.put(EntryContract.directory, entry.getParent());
+			values.put(EntryContract.directory, entry.isDirectory());
 			values.put(EntryContract.title, entry.getTitle());
 			values.put(EntryContract.album, entry.getAlbum());
 			values.put(EntryContract.artist, entry.getArtist());
@@ -161,8 +171,22 @@ public final class CacheUtil {
 			int updated = db.update(EntryContract.table, values, selection, selectionArgs);
 
 			if(updated == 0) {
-				db.insert(EntryContract.table, null, values);
+				db.insertOrThrow(EntryContract.table, null, values);
 			}
+		}
+	}
+	private static void updateEntryList(SQLiteDatabase db, int server, String listId, List<Entry> entries) {
+		// Remove old linkages
+		String removeSelection = EntryListEntriesContract.server + " LIKE ? AND " + EntryListEntriesContract.listId + " LIKE ?";
+		String[] removeArgs = { String.valueOf(server), listId };
+		db.delete(EntryListEntriesContract.table, removeSelection, removeArgs);
+
+		for(Entry entry: entries) {
+			ContentValues values = new ContentValues();
+			values.put(EntryListEntriesContract.server, server);
+			values.put(EntryListEntriesContract.listId, listId);
+			values.put(EntryListEntriesContract.entryId, entry.getId());
+			db.insertOrThrow(EntryListEntriesContract.table, null, values);
 		}
 	}
 }

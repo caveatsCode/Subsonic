@@ -23,7 +23,7 @@ import static github.daneren2005.dsub.util.DbContract.EntryListContract;
 import static github.daneren2005.dsub.util.DbContract.EntryListEntriesContract;
 
 public class DbHelper extends SQLiteOpenHelper {
-	public static final int DATABASE_VERSION = 3;
+	public static final int DATABASE_VERSION = 5;
 	public static final String DATABASE_NAME = "entries.db";
 
 	private static final String SQL_CREATE_ENTRIES = "CREATE TABLE " + EntryContract.table + " (" +
@@ -40,7 +40,7 @@ public class DbHelper extends SQLiteOpenHelper {
 		EntryListContract._ID + " BIGINT PRIMARY KEY, " + EntryListContract.id + " TEXT, " + EntryListContract.name + " TEXT, " +
 		EntryListContract.type + " SMALLINT, " + EntryListContract.parent + " TEXT, " + EntryListContract.server + " INTEGER)";
 	public static final String SQL_CREATE_ENTRY_LIST_ENTRIES = "CREATE TABLE " + EntryListEntriesContract.table + " (" +
-		EntryListEntriesContract._ID + " BIGINT PRIMARY KEY, " + EntryListEntriesContract.listId + " TEXT, "+
+		EntryListEntriesContract._ID + " BIGINT PRIMARY KEY, " + EntryListEntriesContract.server + " TEXT, " + EntryListEntriesContract.listId + " TEXT, "+
 		EntryListEntriesContract.entryId + " TEXT)";
 
 	private static final String SQL_DELETE_ENTRIES = "DROP TABLE IF EXISTS " + EntryContract.table;
