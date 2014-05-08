@@ -140,7 +140,7 @@ public class CachedMusicService implements MusicService {
     public MusicDirectory getMusicDirectory(String id, String name, boolean refresh, Context context, ProgressListener progressListener) throws Exception {
 		MusicDirectory dir = null;
 
-		SQLiteDatabase db = new DbHelper(context).getWritableDatabase();
+		SQLiteDatabase db = DbHelper.getInstance(context).getWritableDatabase();
 		if(!refresh) {
 			dir = CacheUtil.getEntries(db, getServerHex(context), id, DbContract.FOLDER);
 		}
@@ -149,6 +149,7 @@ public class CachedMusicService implements MusicService {
 			dir = musicService.getMusicDirectory(id, name, refresh, context, progressListener);
 			CacheUtil.updateEntries(db, getServerHex(context), dir, DbContract.FOLDER);
 		}
+		db.close();
 
 		return dir;
     }
