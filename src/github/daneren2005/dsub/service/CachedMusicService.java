@@ -158,14 +158,16 @@ public class CachedMusicService implements MusicService {
 	public MusicDirectory getArtist(String id, String name, boolean refresh, Context context, ProgressListener progressListener) throws Exception {
 		MusicDirectory dir = null;
 
+		SQLiteDatabase db = DbHelper.getInstance(context).getWritableDatabase();
 		if(!refresh) {
-			dir = FileUtil.deserialize(context, getCacheName(context, "artist", id), MusicDirectory.class);
+			dir = CacheUtil.getEntries(db, getServerHex(context), id, DbContract.ARTIST);
 		}
 
 		if(dir == null) {
 			dir = musicService.getArtist(id, name, refresh, context, progressListener);
-			FileUtil.serialize(context, dir, getCacheName(context, "artist", id));
+			CacheUtil.updateEntries(db, getServerHex(context), dir, DbContract.ARTIST);
 		}
+		db.close();
 
 		return dir;
 	}
@@ -174,14 +176,16 @@ public class CachedMusicService implements MusicService {
 	public MusicDirectory getAlbum(String id, String name, boolean refresh, Context context, ProgressListener progressListener) throws Exception {
 		MusicDirectory dir = null;
 
+		SQLiteDatabase db = DbHelper.getInstance(context).getWritableDatabase();
 		if(!refresh) {
-			dir = FileUtil.deserialize(context, getCacheName(context, "album", id), MusicDirectory.class);
+			dir = CacheUtil.getEntries(db, getServerHex(context), id, DbContract.ALBUM);
 		}
 
 		if(dir == null) {
 			dir = musicService.getAlbum(id, name, refresh, context, progressListener);
-			FileUtil.serialize(context, dir, getCacheName(context, "album", id));
+			CacheUtil.updateEntries(db, getServerHex(context), dir, DbContract.ALBUM);
 		}
+		db.close();
 
 		return dir;
 	}
@@ -194,19 +198,23 @@ public class CachedMusicService implements MusicService {
     @Override
     public MusicDirectory getPlaylist(boolean refresh, String id, String name, Context context, ProgressListener progressListener) throws Exception {
 		MusicDirectory dir = null;
-		MusicDirectory cachedPlaylist = FileUtil.deserialize(context, getCacheName(context, "playlist", id), MusicDirectory.class);
+
+		SQLiteDatabase db = DbHelper.getInstance(context).getWritableDatabase();
+		MusicDirectory cachedPlaylist = CacheUtil.getEntries(db, getServerHex(context), id, DbContract.PLAYLIST);
 		if(!refresh) {
 			dir = cachedPlaylist;
 		}
 		if(dir == null) {
 			dir = musicService.getPlaylist(refresh, id, name, context, progressListener);
-			FileUtil.serialize(context, dir, getCacheName(context, "playlist", id));
+			CacheUtil.updateEntries(db, getServerHex(context), dir, DbContract.PLAYLIST);
 
 			File playlistFile = FileUtil.getPlaylistFile(context, Util.getServerName(context, musicService.getInstance(context)), dir.getName());
 			if(cachedPlaylist == null || !playlistFile.exists() || !cachedPlaylist.getChildren().equals(dir.getChildren())) {
 				FileUtil.writePlaylistFile(context, playlistFile, dir);
 			}
 		}
+		db.close();
+
         return dir;
     }
 
